@@ -6,6 +6,8 @@ package edu.seg2105.edu.server.backend;
 
 import ocsf.server.*;
 
+import java.io.IOException;
+
 /**
  * This class overrides some of the methods in the abstract 
  * superclass in order to give more functionality to the server.
@@ -48,8 +50,36 @@ public class EchoServer extends AbstractServer
   public void handleMessageFromClient
     (Object msg, ConnectionToClient client)
   {
-    System.out.println("Message received: " + msg + " from " + client);
-    this.sendToAllClients(msg);
+    String message = msg.toString();
+    if (message.startsWith("#login ")) {
+      String loginId = message.substring(7);
+      if (client.getInfo("loginId") == null) {
+        client.setInfo("loginId", loginId);
+        System.out.println("A new client has connected to the server.");
+        System.out.println("Message received: " + message + " from null.");
+        System.out.println(loginId + " has logged on.");
+      } else {
+        try {
+          client.sendToClient("Error: Already logged in.");
+          client.close();
+        } catch (IOException e) {
+          System.out.println("Error closing client connection.");
+        }
+      }
+    } else {
+      String loginId = (String) client.getInfo("loginId");
+      if (loginId != null) {
+        System.out.println("Message received: " + message + " from " + loginId);
+        this.sendToAllClients(loginId + ": " + message);
+      } else {
+        try {
+          client.sendToClient("Error: You must login first.");
+          client.close();
+        } catch (IOException e) {
+          System.out.println("Error closing client connection.");
+        }
+      }
+    }
   }
     
   /**
@@ -70,6 +100,49 @@ public class EchoServer extends AbstractServer
   {
     System.out.println
       ("Server has stopped listening for connections.");
+  }
+
+  /**
+   * This method is called when a client connects to the server.
+   * It prints a message indicating that a client has connected.
+   *
+   * @param client The connection to the client that connected.
+   */
+  @Override
+  protected void clientConnected(ConnectionToClient client) {
+    System.out.println("Client connected: " + client);
+  }
+
+  /**
+   * This method is called when a client disconnects from the server.
+   * It prints a message indicating that a client has disconnected.
+   *
+   * @param client The connection to the client that disconnected.
+   */
+  @Override
+  synchronized protected void clientDisconnected(ConnectionToClient client) {
+    System.out.println("Client disconnected: " + client);
+  }
+
+  /**
+   * Sends a message to all clients connected to the server.
+   *
+   * @param msg The message to be sent.
+   */
+  public void sendToAllClients(String msg) {
+    super.sendToAllClients(msg);
+  }
+
+  /**
+   * Quits the server gracefully.
+   */
+  public void quit() {
+    try {
+      close();
+    } catch (IOException e) {
+      System.out.println("Error closing the server.");
+    }
+    System.exit(0);
   }
   
   

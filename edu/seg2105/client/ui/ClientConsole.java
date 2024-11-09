@@ -50,12 +50,11 @@ public class ClientConsole implements ChatIF
    * @param host The host to connect to.
    * @param port The port to connect on.
    */
-  public ClientConsole(String host, int port) 
+  public ClientConsole(String loginId, String host, int port)
   {
     try 
     {
-      client= new ChatClient(host, port, this);
-      
+      client = new ChatClient(loginId, host, port, this);
       
     } 
     catch(IOException exception) 
@@ -71,9 +70,9 @@ public class ClientConsole implements ChatIF
 
   
   //Instance methods ************************************************
-  
+
   /**
-   * This method waits for input from the console.  Once it is 
+   * This method waits for input from the console. Once it is
    * received, it sends it to the client's message handler.
    */
   public void accept() 
@@ -86,13 +85,57 @@ public class ClientConsole implements ChatIF
       while (true) 
       {
         message = fromConsole.nextLine();
-        client.handleMessageFromClientUI(message);
+        if (message.startsWith("#")) {
+          handleCommand(message);
+        } else {
+          client.handleMessageFromClientUI(message);
+        }
       }
     } 
     catch (Exception ex) 
     {
       System.out.println
         ("Unexpected error while reading from console!");
+    }
+  }
+
+  /**
+   * This method handles commands starting with '#'.
+   *
+   * @param command The command entered by the user.
+   */
+  private void handleCommand(String command) {
+    if (command.equals("#quit")) {
+      client.quit();
+    } else if (command.equals("#logoff")) {
+      client.logoff();
+    } else if (command.startsWith("#sethost")) {
+      String[] parts = command.split(" ");
+      if (parts.length > 1) {
+        client.setHost(parts[1]);
+      } else {
+        display("Usage: #sethost <host>");
+      }
+    } else if (command.startsWith("#setport")) {
+      String[] parts = command.split(" ");
+      if (parts.length > 1) {
+        try {
+          int port = Integer.parseInt(parts[1]);
+          client.setPort(port);
+        } catch (NumberFormatException e) {
+          display("Invalid port number.");
+        }
+      } else {
+        display("Usage: #setport <port>");
+      }
+    } else if (command.equals("#login")) {
+      client.login();
+    } else if (command.equals("#gethost")) {
+      display("Current host: " + client.getHost());
+    } else if (command.equals("#getport")) {
+      display("Current port: " + client.getPort());
+    } else {
+      display("Unknown command.");
     }
   }
 
@@ -109,27 +152,36 @@ public class ClientConsole implements ChatIF
 
   
   //Class methods ***************************************************
-  
+
   /**
    * This method is responsible for the creation of the Client UI.
    *
-   * @param args[0] The host to connect to.
+   * @param args The arguments for the client.
    */
   public static void main(String[] args) 
   {
+    if (args.length < 1) {
+      System.out.println("ERROR - No login ID specified. Connection aborted.");
+      System.exit(1);
+    }
+
+    String loginId = args[0];
     String host = "";
+    int port = DEFAULT_PORT; // Default port
 
-
-    try
-    {
-      host = args[0];
-    }
-    catch(ArrayIndexOutOfBoundsException e)
-    {
+    try {
+      host = args[1];
+      if (args.length > 2) {
+        port = Integer.parseInt(args[2]);
+      }
+    } catch (ArrayIndexOutOfBoundsException e) {
       host = "localhost";
+    } catch (NumberFormatException e) {
+      System.out.println("ERROR - Invalid port number. Using default port " + DEFAULT_PORT);
     }
-    ClientConsole chat= new ClientConsole(host, DEFAULT_PORT);
-    chat.accept();  //Wait for console data
+
+    ClientConsole chat = new ClientConsole(loginId, host, port);
+    chat.accept(); // Wait for console data
   }
 }
 //End of ConsoleChat class
